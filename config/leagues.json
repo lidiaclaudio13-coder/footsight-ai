@@ -1,0 +1,18 @@
+{
+  "leagues": [
+    {"league_id": "IT_SA", "country": "Italy", "name": "Serie A", "tier": 1, "fd_code": "I1"},
+    {"league_id": "IT_SB", "country": "Italy", "name": "Serie B", "tier": 2, "fd_code": "I2"},
+    {"league_id": "FR_L1", "country": "France", "name": "Ligue 1", "tier": 1, "fd_code": "F1"},
+    {"league_id": "FR_L2", "country": "France", "name": "Ligue 2", "tier": 2, "fd_code": "F2"},
+    {"league_id": "DE_BL1", "country": "Germany", "name": "Bundesliga", "tier": 1, "fd_code": "D1"},
+    {"league_id": "DE_BL2", "country": "Germany", "name": "2. Bundesliga", "tier": 2, "fd_code": "D2"},
+    {"league_id": "ES_LL", "country": "Spain", "name": "La Liga", "tier": 1, "fd_code": "SP1"},
+    {"league_id": "ES_LL2", "country": "Spain", "name": "La Liga 2", "tier": 2, "fd_code": "SP2"},
+    {"league_id": "NL_ERE", "country": "Netherlands", "name": "Eredivisie", "tier": 1, "fd_code": "N1"},
+    {"league_id": "NL_EER", "country": "Netherlands", "name": "Eerste Divisie", "tier": 2, "fd_code": "N2"},
+    {"league_id": "AT_BL", "country": "Austria", "name": "Bundesliga", "tier": 1, "fd_code": "AUT"},
+    {"league_id": "AT_2L", "country": "Austria", "name": "2. Liga", "tier": 2, "fd_code": "AUT2"},
+    {"league_id": "BE_PL", "country": "Belgium", "name": "Pro League", "tier": 1, "fd_code": "B1"},
+    {"league_id": "BE_CPL", "country": "Belgium", "name": "Challenger Pro League", "tier": 2, "fd_code": "B2"}
+  ]
+}

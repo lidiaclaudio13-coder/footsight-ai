@@ -1,0 +1,7 @@
+{
+  "feeds": [
+    {"name": "Gazzetta_IT", "url": "https://www.gazzetta.it/rss/Calcio.xml", "language": "it"},
+    {"name": "Marca_ES", "url": "https://e00-marca-static.uecdn.es/rss/futbol/primera-division.xml", "language": "es"},
+    {"name": "Kicker_DE", "url": "https://newsfeed.kicker.de/news/aktuell", "language": "de"}
+  ]
+}
