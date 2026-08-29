@@ -7,11 +7,11 @@ def get_match_features(cursor, match_id):
     rows = cursor.fetchall()
     return {r["feature_name"]: r["feature_value"] for r in rows}
 
-def build_accumulator(target_min_odds=3.0, target_max_odds=15.0, min_events=2, max_events=8, single_min_odd=1.12, single_max_odd=3.50):
+def build_accumulator(target_min_odds=3.0, target_max_odds=25.0, min_events=2, max_events=8, single_min_odd=1.15, single_max_odd=4.00):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 1. Recupera tutti i match disponibili a database
+    # 1. Recupera fino a 30 match disponibili nel database
     cursor.execute(
         """
         SELECT m.match_id, m.league_id, m.match_date_utc, 
@@ -30,20 +30,32 @@ def build_accumulator(target_min_odds=3.0, target_max_odds=15.0, min_events=2, m
 
     candidate_bets = []
 
+    # Dizionario completo di mappatura per le etichette visualizzate
+    labels_map = {
+        "1": "1", "X": "X", "2": "2",
+        "BTTS_YES": "Goal", "BTTS_NO": "NoGoal",
+        "OVER_15": "Over 1.5", "UNDER_15": "Under 1.5",
+        "OVER_25": "Over 2.5", "UNDER_25": "Under 2.5",
+        "OVER_35": "Over 3.5", "UNDER_35": "Under 3.5",
+        "OVER_45": "Over 4.5", "UNDER_45": "Under 4.5",
+        "OVER_1T_15": "1T Over 1.5", "UNDER_1T_15": "1T Under 1.5",
+        "OVER_2T_15": "2T Over 1.5", "UNDER_2T_15": "2T Under 1.5",
+        "MG_1_2": "Multigol 1-2", "MG_1_3": "Multigol 1-3", "MG_1_4": "Multigol 1-4",
+        "MG_2_3": "Multigol 2-3", "MG_2_4": "Multigol 2-4", "MG_2_5": "Multigol 2-5",
+        "MG1T_1_2": "Multigol 1T 1-2", "MG1T_1_3": "Multigol 1T 1-3",
+        "MG2T_1_2": "Multigol 2T 1-2", "MG2T_1_3": "Multigol 2T 1-3"
+    }
+
     for m in matches:
         m_id = m["match_id"]
         feats = get_match_features(cursor, m_id)
         
-        # Recupera quote reali da DB se presenti
         cursor.execute(
             "SELECT selection, odds_value FROM odds_history WHERE match_id=?",
             (m_id,)
         )
         odds_rows = cursor.fetchall()
-        mkt_odds = {}
-        for r in odds_rows:
-            sel = str(r["selection"]).strip().upper()
-            mkt_odds[sel] = float(r["odds_value"])
+        mkt_odds = {str(r["selection"]).strip().upper(): float(r["odds_value"]) for r in odds_rows}
 
         h_pts = feats.get("home_rolling_pts_avg", 1.0) if feats else 1.0
         h_gf = feats.get("home_rolling_gf_avg", 1.0) if feats else 1.0
@@ -54,22 +66,15 @@ def build_accumulator(target_min_odds=3.0, target_max_odds=15.0, min_events=2, m
 
         probs = predict_match_probabilities(h_pts, h_gf, h_ga, a_pts, a_gf, a_ga)
 
-        # Selezioni candidate per la multipla
-        candidate_options = [
-            ("1", f"1 ({m['home_team']})", probs.get("1", 0.0), mkt_odds.get("1")),
-            ("2", f"2 ({m['away_team']})", probs.get("2", 0.0), mkt_odds.get("2")),
-            ("OVER_15", "Over 1.5", probs.get("OVER_15", 0.0), mkt_odds.get("OVER_15")),
-            ("UNDER_35", "Under 3.5", probs.get("UNDER_35", 0.0), mkt_odds.get("UNDER_35")),
-            ("BTTS_YES", "Goal", probs.get("BTTS_YES", 0.0), mkt_odds.get("BTTS_YES")),
-            ("MG_1_4", "Multigol 1-4", probs.get("MG_1_4", 0.0), None),
-            ("MG_2_4", "Multigol 2-4", probs.get("MG_2_4", 0.0), None),
-        ]
-
-        for code, label, p_est, real_odd in candidate_options:
-            if p_est < 0.35:
+        for code, label in labels_map.items():
+            p_est = probs.get(code, 0.0)
+            
+            # Abbassato la soglia minima di probabilità per includere mercati con quote più alte
+            if p_est < 0.25:
                 continue
 
-            odds = real_odd if real_odd else round((1.0 / max(p_est, 0.05)) * 0.90, 2)
+            real_odd = mkt_odds.get(code)
+            odds = real_odd if real_odd else round((1.0 / max(p_est, 0.02)) * 0.90, 2)
             
             if not (single_min_odd <= odds <= single_max_odd):
                 continue
@@ -90,15 +95,16 @@ def build_accumulator(target_min_odds=3.0, target_max_odds=15.0, min_events=2, m
     if not candidate_bets:
         return None
 
-    # Ordina i candidati per probabilità stimata decrescente
-    candidate_bets = sorted(candidate_bets, key=lambda x: x["prob"], reverse=True)
+    # Ordiniamo per Expected Value ed equilibrio di probabilità
+    candidate_bets = sorted(candidate_bets, key=lambda x: (x["ev"], x["prob"]), reverse=True)
     best_acc = None
     best_score = -999.0
 
-    # Generazione combinazioni
+    # Ricerca combinazioni tra min_events e max_events tra i primi 45 mercati disponibili
     for k in range(min_events, max_events + 1):
-        for combo in combinations(candidate_bets[:30], k):
+        for combo in combinations(candidate_bets[:45], k):
             m_ids = [c["match_id"] for c in combo]
+            # Garantisce che non ci siano due esiti presi dalla stessa partita
             if len(m_ids) != len(set(m_ids)):
                 continue
 
@@ -109,7 +115,8 @@ def build_accumulator(target_min_odds=3.0, target_max_odds=15.0, min_events=2, m
                 total_prob *= c["prob"]
 
             if target_min_odds <= total_odds <= target_max_odds:
-                score = total_prob * 100.0
+                # Punteggio basato su combinazione di quota raggiunta e probabilità complessiva
+                score = total_prob * total_odds
                 if score > best_score:
                     best_score = score
                     best_acc = {
