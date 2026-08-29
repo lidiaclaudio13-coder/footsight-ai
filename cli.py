@@ -12,7 +12,6 @@ from src.decision.tracker import place_bet, settle_bet, get_performance_summary
 from src.models.evaluator import run_backtest
 from src.reporting.cli_reporter import print_accumulator_report, print_singles_report, print_tracker_summary
 from src.reporting.exporter import export_daily_report
-from src.interfaces.telegram_bot import run_telegram_bot
 
 TARGET_LEAGUES_FOR_ODDS = [
     "IT_SA", "IT_SB", 
@@ -82,9 +81,25 @@ def run_daily_pipeline(season="2526", target_max_odds=10.0):
 
     export_daily_report(singles, acc)
 
+def print_help():
+    print("\n==================================================")
+    print("          FOOTSIGHT AI - COMANDI LOCALI           ")
+    print("==================================================")
+    print("  init-db              : Inizializza il DB SQLite e le leghe")
+    print("  daily-run            : Esegue l'intera pipeline dati + report")
+    print("  generate-multipla    : Genera la schedina (es: generate-multipla 15.0)")
+    print("  generate-singles     : Trova le top value bets (es: generate-singles 5)")
+    print("  backtest             : Esegue il test di calibrazione (Brier Score)")
+    print("  ingest               : Scarica i risultati storici")
+    print("  fetch-odds           : Scarica le quote live (all o singola lega)")
+    print("  parse-rss            : Aggiorna infortuni e news")
+    print("  build-features       : Ricalcola le statistiche rolling")
+    print("  tracker-stats        : Mostra il rendimento del tuo bankroll")
+    print("==================================================\n")
+
 def main():
     if len(sys.argv) < 2:
-        print("Uso: python cli.py [init-db | ingest | fetch-odds | parse-rss | build-features | generate-multipla | generate-singles | backtest | daily-run | bot]")
+        print_help()
         sys.exit(1)
 
     command = sys.argv[1]
@@ -126,8 +141,6 @@ def main():
             print("==================================================\n")
     elif command == "daily-run":
         run_daily_pipeline()
-    elif command == "bot":
-        run_telegram_bot()
     elif command == "place-bet":
         b_type = sys.argv[2]
         match_desc = sys.argv[3]
@@ -143,7 +156,8 @@ def main():
         sum_data = get_performance_summary()
         print_tracker_summary(sum_data)
     else:
-        print(f"Comando sconosciuto: {command}")
+        print(f"Comando sconosciuto: '{command}'")
+        print_help()
 
 if __name__ == "__main__":
     main()

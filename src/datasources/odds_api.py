@@ -111,17 +111,20 @@ def fetch_and_store_odds(league_id, regions="eu", markets="h2h,totals"):
         for bookmaker in event.get("bookmakers", []):
             book_name = bookmaker["title"]
             for market in bookmaker.get("markets", []):
-                m_key = market["key"] # h2h, totals
+                m_key = market["key"]
                 for outcome in market.get("outcomes", []):
                     name = outcome["name"]
                     price = outcome["price"]
+                    point = outcome.get("point")
+
+                    selection_label = f"{name} {point}" if point is not None else str(name)
 
                     cursor.execute(
                         """
                         INSERT INTO odds_history (match_id, bookmaker, market_type, selection, odds_value)
                         VALUES (?, ?, ?, ?, ?)
                         """,
-                        (match_id, book_name, m_key, str(name), float(price))
+                        (match_id, book_name, m_key, selection_label, float(price))
                     )
                     saved_odds_count += 1
 

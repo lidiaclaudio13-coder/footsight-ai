@@ -6,12 +6,11 @@ from src.decision.accumulator import get_match_features
 def run_backtest(min_ev=0.08, stake_unit=10.0):
     """
     Simula una strategia di scommesse sulle partite giocate a DB (FINISHED)
-    e calcola il ROI %, Win Rate % e il Profitto Netto.
+    e calcola il Brier Score complessivo per verificare la calibrazione delle probabilità.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Recupera tutte le partite concluse con dati statistici registrati
     cursor.execute(
         """
         SELECT m.match_id, m.league_id, m.home_goals, m.away_goals,
@@ -30,31 +29,25 @@ def run_backtest(min_ev=0.08, stake_unit=10.0):
         conn.close()
         return None
 
-    total_bets = 0
-    wins = 0
-    total_staked = 0.0
-    total_returned = 0.0
     brier_scores = []
 
     for m in matches:
         m_id = m["match_id"]
         feats = get_match_features(cursor, m_id)
-        if not feats:
-            continue
+        
+        # Gestione sicura delle feature mancanti
+        h_pts = feats.get("home_rolling_pts_avg", 1.0) if feats else 1.0
+        h_gf = feats.get("home_rolling_gf_avg", 1.0) if feats else 1.0
+        h_ga = feats.get("home_rolling_ga_avg", 1.0) if feats else 1.0
+        a_pts = feats.get("away_rolling_pts_avg", 1.0) if feats else 1.0
+        a_gf = feats.get("away_rolling_gf_avg", 1.0) if feats else 1.0
+        a_ga = feats.get("away_rolling_ga_avg", 1.0) if feats else 1.0
 
-        probs = predict_match_probabilities(
-            feats.get("home_rolling_pts_avg", 1.0),
-            feats.get("home_rolling_gf_avg", 1.0),
-            feats.get("home_rolling_ga_avg", 1.0),
-            feats.get("away_rolling_pts_avg", 1.0),
-            feats.get("away_rolling_gf_avg", 1.0),
-            feats.get("away_rolling_ga_avg", 1.0)
-        )
+        probs = predict_match_probabilities(h_pts, h_gf, h_ga, a_pts, a_gf, a_ga)
 
         hg = m["home_goals"]
         ag = m["away_goals"]
         
-        # Determinazione esito reale (1, X, 2)
         if hg > ag:
             actual_outcome = "1"
         elif hg == ag:
@@ -62,7 +55,6 @@ def run_backtest(min_ev=0.08, stake_unit=10.0):
         else:
             actual_outcome = "2"
 
-        # Brier Score per la partita (Misura accuratezza probabilistica)
         actual_vec = [1 if actual_outcome == o else 0 for o in ["1", "X", "2"]]
         pred_vec = [probs["1"], probs["X"], probs["2"]]
         brier = np.mean([(p - a) ** 2 for p, a in zip(pred_vec, actual_vec)])

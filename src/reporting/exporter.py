@@ -29,17 +29,27 @@ def export_daily_report(singles, accumulator):
             f.write("| # | Lega | Match | Esito | Quota | Prob. Stima | Edge | EV | Stake % |\n")
             f.write("|---|---|---|---|---|---|---|---|---|\n")
             for idx, s in enumerate(singles, 1):
-                f.write(f"| {idx} | {s['league']} | {s['match']} | {s['selection']} | {s['odds']:.2f} | {s['prob_est']*100:.1f}% | +{s['edge']*100:.1f}% | +{s['ev']:.4f} | {s['stake_pct']}% |\n")
+                odds_val = float(s.get("odds", 1.0))
+                prob_val = float(s.get("prob_est", 0.0))
+                edge_val = float(s.get("edge", 0.0))
+                ev_val = float(s.get("ev", 0.0))
+                f.write(f"| {idx} | {s.get('league', 'N/A')} | {s.get('match', 'N/A')} | {s.get('selection', 'N/A')} | {odds_val:.2f} | {prob_val*100:.1f}% | +{edge_val*100:.1f}% | +{ev_val:.4f} | {s.get('stake_pct', 0.0)}% |\n")
         else:
             f.write("_Nessuna singola a valore trovata per oggi._\n")
             
-        f.write("\n\n## 🎯 Multiple Consigliata (Target Quota 15+)\n")
+        f.write("\n\n## 🎯 Multipla Consigliata\n")
         if accumulator:
-            f.write(f"**Quota Totale**: {accumulator['total_odds']} | **Prob. Combinata**: {accumulator['combined_prob']}% | **EV**: +{accumulator['expected_value']}\n\n")
+            tot_odds = float(accumulator.get("total_odds", 0.0))
+            comb_prob = float(accumulator.get("combined_prob", 0.0))
+            exp_val = float(accumulator.get("expected_value", 0.0))
+            f.write(f"**Quota Totale**: {tot_odds:.2f} | **Prob. Combinata**: {comb_prob}% | **EV**: +{exp_val}\n\n")
             f.write("| # | Lega | Match | Esito | Quota | Prob. Stima | EV |\n")
             f.write("|---|---|---|---|---|---|---|\n")
-            for idx, ev in enumerate(accumulator["events"], 1):
-                f.write(f"| {idx} | {ev['league']} | {ev['match']} | {ev['selection']} | {ev['odds']:.2f} | {ev['prob']*100:.1f}% | +{ev['ev']:.4f} |\n")
+            for idx, ev in enumerate(accumulator.get("events", []), 1):
+                odds_val = float(ev.get("odds", 1.0))
+                prob_val = float(ev.get("prob", 0.0))
+                ev_val = float(ev.get("ev", ev.get("expected_value", 0.0)))
+                f.write(f"| {idx} | {ev.get('league', 'N/A')} | {ev.get('match', 'N/A')} | {ev.get('selection', 'N/A')} | {odds_val:.2f} | {prob_val*100:.1f}% | +{ev_val:.4f} |\n")
         else:
             f.write("_Nessuna multipla generabile con i filtri impostati._\n")
 

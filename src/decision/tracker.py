@@ -1,7 +1,10 @@
-import json
 from src.core.db import get_db_connection
 
 def place_bet(bet_type, match_desc, selection, odds, stake):
+    if stake <= 0 or odds <= 1.0:
+        print("[ERROR] Impossibile registrare la scommessa: Stake e Quota devono essere maggiori di zero.")
+        return None
+
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(

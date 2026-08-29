@@ -59,9 +59,9 @@ def find_top_singles(top_n=5, min_ev=0.02, max_single_odds=3.50):
                 mkt_odds["X"] = val
             elif sel in ["2", "AWAY", m["away_team"].upper()]:
                 mkt_odds["2"] = val
-            elif "OVER" in sel:
+            elif "OVER 2.5" in sel:
                 mkt_odds["OVER_25"] = val
-            elif "UNDER" in sel:
+            elif "UNDER 2.5" in sel:
                 mkt_odds["UNDER_25"] = val
 
         probs = predict_match_probabilities(

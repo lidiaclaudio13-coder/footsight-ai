@@ -13,9 +13,9 @@ def print_accumulator_report(acc):
     header_text = Text()
     header_text.append("FOOTSIGHT AI ", style="bold cyan")
     header_text.append("— ACCUMULATOR REPORT (MULTI-LEAGUE)\n", style="bold white")
-    header_text.append(f"Quota Totale: {acc['total_odds']}  |  ", style="bold yellow")
-    header_text.append(f"Prob. Combinata: {acc['combined_prob']}%  |  ", style="bold green")
-    header_text.append(f"Expected Value (EV): +{acc['expected_value']}", style="bold magenta")
+    header_text.append(f"Quota Totale: {acc.get('total_odds', 0.0)}  |  ", style="bold yellow")
+    header_text.append(f"Prob. Combinata: {acc.get('combined_prob', 0.0)}%  |  ", style="bold green")
+    header_text.append(f"Expected Value (EV): +{acc.get('expected_value', 0.0)}", style="bold magenta")
 
     console.print(Panel(header_text, border_style="cyan"))
 
@@ -28,15 +28,19 @@ def print_accumulator_report(acc):
     table.add_column("Prob. Stima", justify="right", style="green")
     table.add_column("EV Single", justify="right", style="bold cyan")
 
-    for idx, ev in enumerate(acc["events"], 1):
+    for idx, ev in enumerate(acc.get("events", []), 1):
+        ev_val = float(ev.get("ev", ev.get("expected_value", 0.0)))
+        odds_val = float(ev.get("odds", 1.0))
+        prob_val = float(ev.get("prob", 0.0))
+
         table.add_row(
             str(idx),
-            ev["league"],
-            ev["match"],
-            ev["selection"],
-            f"{ev['odds']:.2f}",
-            f"{ev['prob']*100:.1f}%",
-            f"+{ev['ev']:.4f}"
+            str(ev.get("league", "N/A")),
+            str(ev.get("match", "N/A")),
+            str(ev.get("selection", "N/A")),
+            f"{odds_val:.2f}",
+            f"{prob_val * 100:.1f}%",
+            f"+{ev_val:.4f}"
         )
 
     console.print(table)
@@ -44,7 +48,7 @@ def print_accumulator_report(acc):
 
 def print_singles_report(singles):
     if not singles:
-        console.print("[bold red][!] Nessuna scommessa singola a valore (Quota <= 3.50) trovata.[/bold red]")
+        console.print("[bold red][!] Nessuna scommessa singola a valore trovata.[/bold red]")
         return
 
     console.print(Panel("[bold cyan]FOOTSIGHT AI[/bold cyan] — [bold white]TOP VALUE BETS SINGOLE (STABILIZZATE)[/bold white]", border_style="green"))
@@ -61,16 +65,21 @@ def print_singles_report(singles):
     table.add_column("Stake %", justify="right", style="bold green")
 
     for idx, s in enumerate(singles, 1):
+        odds_val = float(s.get("odds", 1.0))
+        prob_val = float(s.get("prob_est", 0.0))
+        edge_val = float(s.get("edge", 0.0))
+        ev_val = float(s.get("ev", 0.0))
+
         table.add_row(
             str(idx),
-            s["league"],
-            s["match"],
-            s["selection"],
-            f"{s['odds']:.2f}",
-            f"{s['prob_est']*100:.1f}%",
-            f"+{s['edge']*100:.1f}%",
-            f"+{s['ev']:.4f}",
-            f"{s['stake_pct']}%"
+            str(s.get("league", "N/A")),
+            str(s.get("match", "N/A")),
+            str(s.get("selection", "N/A")),
+            f"{odds_val:.2f}",
+            f"{prob_val * 100:.1f}%",
+            f"+{edge_val * 100:.1f}%",
+            f"+{ev_val:.4f}",
+            f"{s.get('stake_pct', 0.0)}%"
         )
 
     console.print(table)
@@ -80,17 +89,18 @@ def print_tracker_summary(summary):
     console.print(Panel("[bold cyan]FOOTSIGHT AI[/bold cyan] — [bold white]BANKROLL & BETS PERFORMANCE TRACKER[/bold white]", border_style="magenta"))
 
     table = Table(title="Consuntivo Performance Reali", title_style="bold white")
-    table.add_column("Métrica", style="cyan")
+    table.add_column("Metrica", style="cyan")
     table.add_column("Valore", justify="right", style="bold yellow")
 
-    table.add_row("Giocate Concluse", str(summary["total_settled"]))
-    table.add_row("Giocate In Attesa", str(summary["pending"]))
-    table.add_row("Totale Scommesso", f"{summary['total_staked']:.2f} €")
+    table.add_row("Giocate Concluse", str(summary.get("total_settled", 0)))
+    table.add_row("Giocate In Attesa", str(summary.get("pending", 0)))
+    table.add_row("Totale Scommesso", f"{float(summary.get('total_staked', 0.0)):.2f} €")
     
-    prof_color = "green" if summary["total_profit"] >= 0 else "red"
-    table.add_row("Profitto Netto", f"[{prof_color}]{summary['total_profit']:+.2f} €[/{prof_color}]")
-    table.add_row("ROI % (Return on Investment)", f"[{prof_color}]{summary['roi_pct']:+.2f} %[/{prof_color}]")
-    table.add_row("Win Rate %", f"{summary['win_rate_pct']:.1f} %")
+    total_profit = float(summary.get("total_profit", 0.0))
+    prof_color = "green" if total_profit >= 0 else "red"
+    table.add_row("Profitto Netto", f"[{prof_color}]{total_profit:+.2f} €[/{prof_color}]")
+    table.add_row("ROI % (Return on Investment)", f"[{prof_color}]{float(summary.get('roi_pct', 0.0)):+.2f} %[/{prof_color}]")
+    table.add_row("Win Rate %", f"{float(summary.get('win_rate_pct', 0.0)):.1f} %")
 
     console.print(table)
     console.print("\n")

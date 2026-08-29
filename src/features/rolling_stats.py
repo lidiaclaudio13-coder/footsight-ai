@@ -59,25 +59,26 @@ def compute_features_for_match(cursor, match_id, window=5):
             ga = m["away_goals"] if is_home else m["home_goals"]
             shots = m["home_shots"] if is_home else m["away_shots"]
 
-            h_gf.append(gf if gf is not None else 0)
-            h_ga.append(ga if ga is not None else 0)
+            if gf is not None and ga is not None:
+                h_gf.append(gf)
+                h_ga.append(ga)
+                if gf > ga:
+                    h_pts.append(3)
+                elif gf == ga:
+                    h_pts.append(1)
+                else:
+                    h_pts.append(0)
+
             if shots is not None:
                 h_shots.append(shots)
 
-            if gf > ga:
-                h_pts.append(3)
-            elif gf == ga:
-                h_pts.append(1)
-            else:
-                h_pts.append(0)
-
-        features["home_rolling_pts_avg"] = float(np.mean(h_pts))
-        features["home_rolling_gf_avg"] = float(np.mean(h_gf))
-        features["home_rolling_ga_avg"] = float(np.mean(h_ga))
+        features["home_rolling_pts_avg"] = float(np.mean(h_pts)) if h_pts else 1.0
+        features["home_rolling_gf_avg"] = float(np.mean(h_gf)) if h_gf else 1.0
+        features["home_rolling_ga_avg"] = float(np.mean(h_ga)) if h_ga else 1.0
         features["home_rolling_shots_avg"] = float(np.mean(h_shots)) if h_shots else 0.0
 
         last_match_date = parse_utc_timestamp(h_hist[0]["match_date_utc"])
-        features["home_rest_days"] = float((target_match_date - last_match_date).days)
+        features["home_rest_days"] = float(max(0, (target_match_date - last_match_date).days))
     else:
         features["home_rolling_pts_avg"] = 1.0
         features["home_rolling_gf_avg"] = 1.0
@@ -95,25 +96,26 @@ def compute_features_for_match(cursor, match_id, window=5):
             ga = m["away_goals"] if is_home else m["home_goals"]
             shots = m["home_shots"] if is_home else m["away_shots"]
 
-            a_gf.append(gf if gf is not None else 0)
-            a_ga.append(ga if ga is not None else 0)
+            if gf is not None and ga is not None:
+                a_gf.append(gf)
+                a_ga.append(ga)
+                if gf > ga:
+                    a_pts.append(3)
+                elif gf == ga:
+                    a_pts.append(1)
+                else:
+                    a_pts.append(0)
+
             if shots is not None:
                 a_shots.append(shots)
 
-            if gf > ga:
-                a_pts.append(3)
-            elif gf == ga:
-                a_pts.append(1)
-            else:
-                a_pts.append(0)
-
-        features["away_rolling_pts_avg"] = float(np.mean(a_pts))
-        features["away_rolling_gf_avg"] = float(np.mean(a_gf))
-        features["away_rolling_ga_avg"] = float(np.mean(a_ga))
+        features["away_rolling_pts_avg"] = float(np.mean(a_pts)) if a_pts else 1.0
+        features["away_rolling_gf_avg"] = float(np.mean(a_gf)) if a_gf else 1.0
+        features["away_rolling_ga_avg"] = float(np.mean(a_ga)) if a_ga else 1.0
         features["away_rolling_shots_avg"] = float(np.mean(a_shots)) if a_shots else 0.0
 
         last_match_date = parse_utc_timestamp(a_hist[0]["match_date_utc"])
-        features["away_rest_days"] = float((target_match_date - last_match_date).days)
+        features["away_rest_days"] = float(max(0, (target_match_date - last_match_date).days))
     else:
         features["away_rolling_pts_avg"] = 1.0
         features["away_rolling_gf_avg"] = 1.0

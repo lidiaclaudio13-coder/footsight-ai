@@ -3,7 +3,6 @@ import requests
 from datetime import datetime
 from src.core.db import get_db_connection
 
-# Feed RSS aggiornati con endpoint attivi e domini validi
 RSS_FEEDS = {
     "Gazzetta_Calcio": "https://www.gazzetta.it/rss/home.xml",
     "TuttoMercatoWeb_SerieA": "https://www.tuttomercatoweb.com/rss/?action=rubrica&id=11",
@@ -17,6 +16,15 @@ INJURY_KEYWORDS = [
     "risentimento", "operato", "frattura", "out", "assente", "lesion", "baja",
     "lesionado", "injured", "injury", "ruled out", "suspended", "clause"
 ]
+
+def find_extracted_team(cursor, text):
+    cursor.execute("SELECT team_id, canonical_name FROM teams")
+    teams = cursor.fetchall()
+    text_lower = text.lower()
+    for team in teams:
+        if team["canonical_name"].lower() in text_lower and len(team["canonical_name"]) > 3:
+            return team["team_id"]
+    return None
 
 def fetch_rss_feed(url):
     headers = {
@@ -48,20 +56,22 @@ def parse_all_rss_feeds():
             description = entry.get("summary", entry.get("description", ""))
             link = entry.get("link", "")
 
-            full_text = f"{title} {description}".lower()
-            if any(keyword in full_text for keyword in INJURY_KEYWORDS):
+            full_text = f"{title} {description}"
+            if any(keyword in full_text.lower() for keyword in INJURY_KEYWORDS):
+                extracted_team_id = find_extracted_team(cursor, full_text)
                 now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                 try:
                     cursor.execute(
                         """
-                        INSERT OR IGNORE INTO rss_injuries_raw (source_name, title, description, link, published_at, confidence_score)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        INSERT OR IGNORE INTO rss_injuries_raw 
+                        (source_name, title, description, link, published_at, extracted_team_id, confidence_score)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                         """,
-                        (source_name, title, description, link, now_str, 0.85)
+                        (source_name, title, description, link, now_str, extracted_team_id, 0.85)
                     )
                     if cursor.rowcount > 0:
                         saved_count += 1
-                except Exception as e:
+                except Exception:
                     pass
 
     conn.commit()
