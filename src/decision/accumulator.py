@@ -8,6 +8,7 @@ def get_match_features(cursor, match_id):
     return {r["feature_name"]: r["feature_value"] for r in rows}
 
 def build_accumulator(
+    selected_date=None,
     target_min_odds=3.0, 
     target_max_odds=15.0, 
     min_events=2, 
@@ -18,21 +19,39 @@ def build_accumulator(
 ):
     """
     Genera la miglior multipla in base ai vincoli forniti.
+    - selected_date: (opzionale) data specifica nel formato 'YYYY-MM-DD'. Se None, prende le partite di oggi/future.
     - exact_events: se specificato (int), forza la multipla ad avere ESATTAMENTE quel numero di eventi.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        SELECT m.match_id, m.league_id, m.match_date_utc, 
-               t1.canonical_name as home_team, t2.canonical_name as away_team
-        FROM matches m
-        JOIN teams t1 ON m.home_team_id = t1.team_id
-        JOIN teams t2 ON m.away_team_id = t2.team_id
-        ORDER BY m.match_date_utc DESC LIMIT 35
-        """
-    )
+    # Query allineata con il filtro per data odierna/futura (identica alle singole)
+    if selected_date:
+        cursor.execute(
+            """
+            SELECT m.match_id, m.league_id, m.match_date_utc, 
+                   t1.canonical_name as home_team, t2.canonical_name as away_team
+            FROM matches m
+            JOIN teams t1 ON m.home_team_id = t1.team_id
+            JOIN teams t2 ON m.away_team_id = t2.team_id
+            WHERE DATE(m.match_date_utc) = DATE(?)
+            ORDER BY m.match_date_utc ASC LIMIT 50
+            """,
+            (str(selected_date),)
+        )
+    else:
+        cursor.execute(
+            """
+            SELECT m.match_id, m.league_id, m.match_date_utc, 
+                   t1.canonical_name as home_team, t2.canonical_name as away_team
+            FROM matches m
+            JOIN teams t1 ON m.home_team_id = t1.team_id
+            JOIN teams t2 ON m.away_team_id = t2.team_id
+            WHERE DATE(m.match_date_utc) >= DATE('now')
+            ORDER BY m.match_date_utc ASC LIMIT 50
+            """
+        )
+
     matches = cursor.fetchall()
 
     if not matches:
