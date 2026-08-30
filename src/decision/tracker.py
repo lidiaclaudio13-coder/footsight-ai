@@ -1,5 +1,22 @@
 from src.core.db import get_db_connection
 
+def ensure_tracker_table(cursor):
+    """Crea la tabella bets_tracker con tutte le colonne necessarie se non esiste."""
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS bets_tracker (
+            bet_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bet_type TEXT DEFAULT 'SINGLE',
+            match_description TEXT,
+            selection TEXT,
+            odds REAL,
+            stake REAL,
+            status TEXT DEFAULT 'PENDING',
+            payout REAL DEFAULT 0.0,
+            profit_loss REAL DEFAULT 0.0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
 def place_bet(bet_type, match_desc, selection, odds, stake):
     if stake <= 0 or odds <= 1.0:
         print("[ERROR] Impossibile registrare la scommessa: Stake e Quota devono essere maggiori di zero.")
@@ -7,6 +24,8 @@ def place_bet(bet_type, match_desc, selection, odds, stake):
 
     conn = get_db_connection()
     cursor = conn.cursor()
+    ensure_tracker_table(cursor)
+
     cursor.execute(
         """
         INSERT INTO bets_tracker (bet_type, match_description, selection, odds, stake, status)
@@ -28,6 +47,7 @@ def settle_bet(bet_id, result):
 
     conn = get_db_connection()
     cursor = conn.cursor()
+    ensure_tracker_table(cursor)
 
     cursor.execute("SELECT odds, stake FROM bets_tracker WHERE bet_id=?", (bet_id,))
     row = cursor.fetchone()
@@ -58,29 +78,14 @@ def settle_bet(bet_id, result):
     conn.close()
     print(f"[OK] Scommessa ID {bet_id} aggiornata come {result}! (P&L: {profit:+.2f}€)")
 
-from src.core.db import get_db_connection
-
 def get_performance_summary():
     """
     Recupera le statistiche di performance dal tracker.
-    Crea la tabella se non esiste ed evita crash in assenza di dati.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Assicura che la tabella esista per evitare OperationalError
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS bets_tracker (
-            bet_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            match_description TEXT,
-            selection TEXT,
-            odds REAL,
-            stake REAL,
-            status TEXT DEFAULT 'PENDING',
-            profit_loss REAL DEFAULT 0.0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    ensure_tracker_table(cursor)
     conn.commit()
 
     try:
