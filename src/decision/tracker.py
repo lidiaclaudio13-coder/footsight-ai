@@ -58,39 +58,65 @@ def settle_bet(bet_id, result):
     conn.close()
     print(f"[OK] Scommessa ID {bet_id} aggiornata come {result}! (P&L: {profit:+.2f}€)")
 
+from src.core.db import get_db_connection
+
 def get_performance_summary():
+    """
+    Recupera le statistiche di performance dal tracker.
+    Crea la tabella se non esiste ed evita crash in assenza di dati.
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM bets_tracker WHERE status != 'PENDING'")
-    settled = cursor.fetchall()
-    
-    cursor.execute("SELECT * FROM bets_tracker WHERE status = 'PENDING'")
-    pending = cursor.fetchall()
-    conn.close()
+    # Assicura che la tabella esista per evitare OperationalError
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS bets_tracker (
+            bet_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            match_description TEXT,
+            selection TEXT,
+            odds REAL,
+            stake REAL,
+            status TEXT DEFAULT 'PENDING',
+            profit_loss REAL DEFAULT 0.0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
 
-    if not settled:
+    try:
+        cursor.execute("SELECT * FROM bets_tracker WHERE status != 'PENDING'")
+        settled_bets = cursor.fetchall()
+
+        if not settled_bets:
+            conn.close()
+            return {
+                "total_bets": 0,
+                "won": 0,
+                "lost": 0,
+                "win_rate": "0.0%",
+                "total_staked": 0.0,
+                "total_profit": 0.0,
+                "roi": "0.0%"
+            }
+
+        total = len(settled_bets)
+        won = sum(1 for b in settled_bets if b["status"] == "WON")
+        lost = sum(1 for b in settled_bets if b["status"] == "LOST")
+        total_staked = sum(b["stake"] for b in settled_bets)
+        total_profit = sum(b["profit_loss"] for b in settled_bets)
+        win_rate = (won / total * 100) if total > 0 else 0.0
+        roi = (total_profit / total_staked * 100) if total_staked > 0 else 0.0
+
+        conn.close()
         return {
-            "total_settled": 0,
-            "pending": len(pending),
-            "total_staked": 0.0,
-            "total_profit": 0.0,
-            "roi_pct": 0.0,
-            "win_rate_pct": 0.0
+            "total_bets": total,
+            "won": won,
+            "lost": lost,
+            "win_rate": f"{win_rate:.1f}%",
+            "total_staked": round(total_staked, 2),
+            "total_profit": round(total_profit, 2),
+            "roi": f"{roi:.1f}%"
         }
-
-    total_staked = sum(r["stake"] for r in settled)
-    total_profit = sum(r["profit_loss"] for r in settled)
-    wins = sum(1 for r in settled if r["status"] == "WON")
-
-    roi = (total_profit / total_staked * 100) if total_staked > 0 else 0.0
-    win_rate = (wins / len(settled) * 100) if settled else 0.0
-
-    return {
-        "total_settled": len(settled),
-        "pending": len(pending),
-        "total_staked": round(total_staked, 2),
-        "total_profit": round(total_profit, 2),
-        "roi_pct": round(roi, 2),
-        "win_rate_pct": round(win_rate, 1)
-    }
+    except Exception as e:
+        conn.close()
+        return {"error": f"Errore recupero dati: {str(e)}"}
