@@ -13,20 +13,32 @@ st.set_page_config(page_title="FootSight AI + Groq", page_icon="⚽", layout="wi
 
 st.title("⚽ FootSight AI — Control Panel & Agente Cloud")
 
+# Assicura l'inizializzazione del DB all'avvio senza far crashare il server
+try:
+    init_db()
+except Exception as e:
+    st.warning(f"Inizializzazione DB: {e}")
+
 # Sidebar
 st.sidebar.header("⚙️ Azioni Pipeline")
 if st.sidebar.button("🚀 Esegui Pipeline Dati"):
     with st.spinner("Aggiornamento dati in corso..."):
-        ingest_football_data()
-        parse_all_rss_feeds()
-        build_all_features()
-        st.success("Pipeline completata!")
+        try:
+            ingest_football_data()
+            parse_all_rss_feeds()
+            build_all_features()
+            st.success("Pipeline completata!")
+        except Exception as e:
+            st.error(f"Errore durante l'esecuzione della pipeline: {e}")
 
 if st.sidebar.button("🧹 Inizializza DB"):
-    init_db()
-    st.success("Database Pronto!")
+    try:
+        init_db()
+        st.success("Database Pronto e Ripristinato!")
+    except Exception as e:
+        st.error(f"Errore ripristino DB: {e}")
 
-# Inizializzazione dei Tabs (Devono essere definiti PRIMA di essere usati nei blocchi "with")
+# Tabs
 tab1, tab2, tab3 = st.tabs(["📌 Value Bets Singole", "🎯 Schedina Multipla", "📊 Performance Tracker"])
 
 with tab1:
@@ -54,7 +66,7 @@ with tab1:
                             ai_op = analyze_with_ollama(s['match'], s['selection'], s['odds'], s['prob_est'], s['ev'])
                             st.info(ai_op)
             else:
-                st.warning("Nessuna singola trovata.")
+                st.warning("Nessuna singola trovata. Esegui la pipeline se il database è vuoto.")
 
 with tab2:
     st.header("🎯 Generatore Schedina Multipla Personalizzata")
@@ -100,7 +112,7 @@ with tab2:
             if acc:
                 st.success(f"🎯 Multipla Trovata ({acc['num_events']} eventi)! Quota Totale: {acc['total_odds']} | Probabilità Combinata: {acc['combined_prob']}%")
                 df_acc = pd.DataFrame(acc["events"])
-                st.dataframe(df_acc[["league", "match", "selection", "odds", "prob", "ev"]], use_container_width=True)
+                st.dataframe(df_acc[["league", "match", "selection", "odds", "prob", "ev"]], width="stretch")
             else:
                 st.error("Nessuna combinazione soddisfa i criteri scelti. Prova ad allargare il range della quota totale o ad abbassare la Quota Singola MIN.")
 
